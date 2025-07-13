@@ -48,88 +48,22 @@
         抽牌
     </button>
 
-    <!-- 統計資訊區塊 -->
-    <div class="mt-8 text-white text-xl md:text-2xl lg:text-3xl font-semibold text-center drop-shadow-lg">
-        <p>網頁開啟次數: <span id="pageViewsCount">0</span></p>
-        <p>總抽牌次數: <span id="totalDrawsCount">0</span></p>
-    </div>
-
-    <!-- 牌卡解讀區塊 -->
-    <div class="mt-8 w-full max-w-md bg-white bg-opacity-20 rounded-xl p-6 shadow-lg text-white text-center">
-        <button id="interpretCardBtn"
-                class="bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white font-semibold py-3 px-6 rounded-full
-                       shadow-md hover:shadow-lg transition-all duration-300 ease-in-out
-                       transform hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-purple-300
-                       text-xl md:text-2xl lg:text-3xl mb-4">
-            ✨ 牌卡解讀
-        </button>
-        <div id="interpretationDisplay" class="text-lg md:text-xl text-yellow-200 min-h-[80px] flex items-center justify-center p-2">
-            點擊「牌卡解讀」以獲得指引
-        </div>
-        <div id="loadingIndicator" class="hidden text-yellow-200 mt-2">
-            載入中... 請稍候
-        </div>
-    </div>
+    <!-- 統計資訊區塊 (已移除) -->
+    <!-- 牌卡解讀區塊 (已移除) -->
 
     <!-- Instagram 連結 -->
     <p class="text-white text-lg md:text-xl mt-8">
         靜心沙龍 <a href="https://www.instagram.com/kumeka888/" target="_blank" class="text-yellow-300 hover:text-yellow-400 underline">@kumeka888</a>
     </p>
 
-    <!-- Firebase SDK 引入 -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // 全域變數，用於儲存 Firebase 實例和當前抽到的牌卡名稱
-        let db;
-        let auth;
-        let appId;
-        let currentDrawnCardName = null; // 新增變數來儲存當前抽到的牌卡名稱
-
-        // 頁面加載完成時的初始化函數
-        window.onload = async function() {
-            try {
-                // 檢查 Canvas 環境是否提供 __app_id 和 __firebase_config
-                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-
-                // 初始化 Firebase 應用
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                // 嘗試使用自訂 token 登入，如果沒有則匿名登入
-                if (typeof __initial_auth_token !== 'undefined') {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
-                // 初始化牌組並顯示牌背
-                initializeDeck();
-
-                // 更新網頁瀏覽次數
-                await trackPageView();
-
-                // 綁定抽牌按鈕事件
-                document.getElementById('drawCardBtn').addEventListener('click', drawCard);
-                // 綁定牌卡解讀按鈕事件
-                document.getElementById('interpretCardBtn').addEventListener('click', interpretCard);
-
-            } catch (error) {
-                console.error("Firebase 初始化失敗或登入錯誤:", error);
-            }
-        };
-
         // 牌組和牌面圖片 URLs (更新為包含名稱和 URL 的物件陣列)
         let deck = [];
         // 使用 GitHub 儲存庫中的相對路徑作為圖片連結
-        const cardBackImage = './images/card_back.jpg';
+        const cardBackImage = './images/card_back.jpg'; // 更新為簡化後的檔名
 
         const cardFaceImages = [
-            { name: '玫瑰', url: './images/1.玫瑰.jpg'  },
+            { name: '玫瑰', url: './images/1.玫瑰.jpg' },
             { name: '梔子花', url: './images/2.梔子花.jpg' },
             { name: '百合', url: './images/3.百合.jpg' },
             { name: '馬鬱蘭', url: './images/4.馬鬱蘭.jpg' },
@@ -222,8 +156,8 @@
             cardDisplay.style.backgroundImage = `url('${cardBackImage}')`; // 設定背景圖片
             cardDisplay.textContent = ''; // 清空顯示的牌面文字
             cardDisplay.classList.remove('text-red-600', 'text-gray-800'); // 移除牌面文字顏色
-            document.getElementById('interpretationDisplay').textContent = '點擊「牌卡解讀」以獲得指引'; // 清空解讀
-            currentDrawnCardName = null; // 重置已抽牌卡名稱
+            // document.getElementById('interpretationDisplay').textContent = '點擊「牌卡解讀」以獲得指引'; // 清空解讀
+            // currentDrawnCardName = null; // 重置已抽牌卡名稱
         }
 
         // 函數：顯示牌面圖片
@@ -232,8 +166,8 @@
             cardDisplay.style.backgroundImage = `url('${drawnCardObject.url}')`; // 設定牌面圖片
             cardDisplay.textContent = ''; // 清空顯示的文字
             cardDisplay.classList.remove('text-red-600', 'text-gray-800'); // 移除顏色類別
-            currentDrawnCardName = drawnCardObject.name; // 儲存當前抽到的牌卡名稱
-            document.getElementById('interpretationDisplay').textContent = '點擊「牌卡解讀」以獲得指引'; // 清空舊解讀
+            // currentDrawnCardName = drawnCardObject.name; // 儲存當前抽到的牌卡名稱
+            // document.getElementById('interpretationDisplay').textContent = '點擊「牌卡解讀」以獲得指引'; // 清空舊解讀
         }
 
         // 函數：初始化並洗牌
@@ -247,83 +181,14 @@
             showCardBack(); // 初始化時顯示牌背
         }
 
-        // 函數：更新統計數據並顯示
-        async function updateStatsDisplay() {
-            try {
-                const docRef = doc(db, "artifacts", appId, "public", "data", "page_stats", "main");
-                const docSnap = await getDoc(docRef);
+        // 頁面加載完成時的初始化函數
+        window.onload = async function() {
+            // 初始化牌組並顯示牌背
+            initializeDeck();
 
-                let pageViews = 0;
-                let totalDraws = 0;
-
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    pageViews = data.pageViews || 0;
-                    totalDraws = data.totalDraws || 0;
-                }
-
-                document.getElementById('pageViewsCount').textContent = pageViews;
-                document.getElementById('totalDrawsCount').textContent = totalDraws;
-
-            } catch (error) {
-                console.error("更新統計數據失敗:", error);
-                document.getElementById('pageViewsCount').textContent = '錯誤';
-                document.getElementById('totalDrawsCount').textContent = '錯誤';
-            }
-        }
-
-        // 函數：追蹤網頁瀏覽次數
-        async function trackPageView() {
-            if (!db) {
-                console.error("Firestore 尚未初始化.");
-                return;
-            }
-            try {
-                const docRef = doc(db, "artifacts", appId, "public", "data", "page_stats", "main");
-                const docSnap = await getDoc(docRef);
-
-                if (docSnap.exists()) {
-                    await updateDoc(docRef, {
-                        pageViews: (docSnap.data().pageViews || 0) + 1
-                    });
-                } else {
-                    await setDoc(docRef, {
-                        pageViews: 1,
-                        totalDraws: 0
-                    });
-                }
-                updateStatsDisplay(); // 更新顯示
-            } catch (error) {
-                console.error("追蹤網頁瀏覽次數失敗:", error);
-            }
-        }
-
-        // 函數：追蹤抽牌次數
-        async function trackCardDraw(drawnCardName) {
-            if (!db) {
-                console.error("Firestore 尚未初始化.");
-                return;
-            }
-            try {
-                // 更新總抽牌次數
-                const statsDocRef = doc(db, "artifacts", appId, "public", "data", "page_stats", "main");
-                const statsDocSnap = await getDoc(statsDocRef);
-
-                if (statsDocSnap.exists()) {
-                    await updateDoc(statsDocRef, {
-                        totalDraws: (statsDocSnap.data().totalDraws || 0) + 1
-                    });
-                } else {
-                    await setDoc(statsDocRef, {
-                        pageViews: 1, // 如果統計文檔不存在，初始化
-                        totalDraws: 1
-                    });
-                }
-                updateStatsDisplay(); // 更新顯示
-            } catch (error) {
-                console.error("追蹤抽牌次數失敗:", error);
-            }
-        }
+            // 綁定抽牌按鈕事件
+            document.getElementById('drawCardBtn').addEventListener('click', drawCard);
+        };
 
         // 函數：抽一張牌
         async function drawCard() {
@@ -336,55 +201,6 @@
             // 從牌組中移除並抽出一張牌 (即圖片 URL)
             const drawnCard = deck.pop(); // drawnCard 現在是 { name: '...', url: '...' }
             showCardFace(drawnCard); // 顯示抽到的牌面圖片
-
-            // 追蹤抽牌次數
-            await trackCardDraw(drawnCard.name); // 傳遞牌卡名稱給追蹤函數
-        }
-
-        // 函數：使用 Gemini API 解讀牌卡
-        async function interpretCard() {
-            const interpretationDisplay = document.getElementById('interpretationDisplay');
-            const loadingIndicator = document.getElementById('loadingIndicator');
-
-            if (!currentDrawnCardName) {
-                interpretationDisplay.textContent = '請先抽一張牌！';
-                return;
-            }
-
-            interpretationDisplay.textContent = ''; // 清空之前的解讀
-            loadingIndicator.classList.remove('hidden'); // 顯示載入指示器
-
-            try {
-                const prompt = `請為我解讀這張精油牌卡：${currentDrawnCardName}。請提供簡潔、正向且與身心靈相關的指引，並以繁體中文呈現。`;
-                
-                let chatHistory = [];
-                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-                const payload = { contents: chatHistory };
-                const apiKey = ""; // Canvas 將在執行時提供此 API 金鑰
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-                if (result.candidates && result.candidates.length > 0 &&
-                    result.candidates[0].content && result.candidates[0].content.parts &&
-                    result.candidates[0].content.parts.length > 0) {
-                    const text = result.candidates[0].content.parts[0].text;
-                    interpretationDisplay.textContent = text;
-                } else {
-                    interpretationDisplay.textContent = '無法獲取牌卡解讀，請再試一次。';
-                    console.error("Gemini API 回應結構不符預期:", result);
-                }
-            } catch (error) {
-                interpretationDisplay.textContent = '解讀失敗，請檢查網路連線或稍後再試。';
-                console.error("呼叫 Gemini API 失敗:", error);
-            } finally {
-                loadingIndicator.classList.add('hidden'); // 隱藏載入指示器
-            }
         }
 
         // 參考現有的牌面圖片 URLs
@@ -393,4 +209,5 @@
     </script>
 </body>
 </html>
+
 
