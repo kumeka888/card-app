@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>線上抽牌系統</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 設定 Inter 字體 */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* 確保卡片顯示區塊內容置中 */
+        #cardDisplay {
+            line-height: 1; /* 調整行高以確保內容垂直置中 */
+            background-size: cover; /* 讓背景圖片覆蓋整個區塊 */
+            background-position: center; /* 將背景圖片置中 */
+            background-repeat: no-repeat; /* 不重複背景圖片 */
+            display: flex; /* 使用 flexbox 確保內容置中 */
+            align-items: center; /* 垂直置中 */
+            justify-content: center; /* 水平置中 */
+            text-align: center; /* 確保內部文字（如果有的話）置中 */
+            color: transparent; /* 隱藏牌面文字，因為現在顯示圖片 */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-600 via-indigo-700 to-pink-600 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- 標題區塊 -->
+    <h1 class="text-white text-4xl md:text-5xl lg:text-6xl font-bold mb-10 text-center drop-shadow-lg">
+        靜心沙龍魔法精油牌卡–宇宙指引
+    </h1>
+
+    <!-- 卡片顯示區塊 -->
+    <div id="cardDisplay"
+         class="bg-marine-800 text-gray-800 font-bold text-6xl md:text-8xl
+                w-64 h-96 md:w-80 md:h-96 lg:w-96 lg:h-96 rounded-xl shadow-2xl transition-all duration-300 ease-in-out
+                transform hover:scale-105 mb-10 border-4 border-gray-300">
+    </div>
+
+    <!-- 抽牌按鈕 -->
+    <button id="drawCardBtn"
+            class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-4 px-10 rounded-full
+                   shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out
+                   transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-blue-300
+                   text-2xl md:text-3xl lg:text-4xl">
+        抽牌
+    </button>
+
+    <!-- 統計資訊區塊 -->
+    <div class="mt-8 text-white text-xl md:text-2xl lg:text-3xl font-semibold text-center drop-shadow-lg">
+        <p>網頁開啟次數: <span id="pageViewsCount">0</span></p>
+        <p>總抽牌次數: <span id="totalDrawsCount">0</span></p>
+    </div>
+
+    <!-- 牌卡解讀區塊 -->
+    <div class="mt-8 w-full max-w-md bg-white bg-opacity-20 rounded-xl p-6 shadow-lg text-white text-center">
+        <button id="interpretCardBtn"
+                class="bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white font-semibold py-3 px-6 rounded-full
+                       shadow-md hover:shadow-lg transition-all duration-300 ease-in-out
+                       transform hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-purple-300
+                       text-xl md:text-2xl lg:text-3xl mb-4">
+            ✨ 牌卡解讀
+        </button>
+        <div id="interpretationDisplay" class="text-lg md:text-xl text-yellow-200 min-h-[80px] flex items-center justify-center p-2">
+            點擊「牌卡解讀」以獲得指引
+        </div>
+        <div id="loadingIndicator" class="hidden text-yellow-200 mt-2">
+            載入中... 請稍候
+        </div>
+    </div>
+
+    <!-- Instagram 連結 -->
+    <p class="text-white text-lg md:text-xl mt-8">
+        靜心沙龍 <a href="https://www.instagram.com/kumeka888/" target="_blank" class="text-yellow-300 hover:text-yellow-400 underline">@kumeka888</a>
+    </p>
+
+    <!-- Firebase SDK 引入 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 全域變數，用於儲存 Firebase 實例和當前抽到的牌卡名稱
+        let db;
+        let auth;
+        let appId;
+        let currentDrawnCardName = null; // 新增變數來儲存當前抽到的牌卡名稱
+
+        // 頁面加載完成時的初始化函數
+        window.onload = async function() {
+            try {
+                // 檢查 Canvas 環境是否提供 __app_id 和 __firebase_config
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+                // 初始化 Firebase 應用
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // 嘗試使用自訂 token 登入，如果沒有則匿名登入
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // 初始化牌組並顯示牌背
+                initializeDeck();
+
+                // 更新網頁瀏覽次數
+                await trackPageView();
+
+                // 綁定抽牌按鈕事件
+                document.getElementById('drawCardBtn').addEventListener('click', drawCard);
+                // 綁定牌卡解讀按鈕事件
+                document.getElementById('interpretCardBtn').addEventListener('click', interpretCard);
+
+            } catch (error) {
+                console.error("Firebase 初始化失敗或登入錯誤:", error);
+            }
+        };
+
+        // 牌組和牌面圖片 URLs (更新為包含名稱和 URL 的物件陣列)
+        let deck = [];
+        // 使用平台提供的 contentFetchId 作為圖片連結
+        const cardBackImage = 'uploaded:1.75“x2.5”（44.45×63.5mm）.jpg-ed932fa4-d90d-4146-a928-f3e47e942024';
+
+        const cardFaceImages = [
+            { name: '玫瑰', url: 'uploaded:1.玫瑰.jpg-fb9dcd15-6466-4ff3-b3db-07fe93df3aac' },
+            { name: '梔子花', url: 'uploaded:2.梔子花.jpg-e524516b-e07c-43b3-b00f-37fe67d42d36' },
+            { name: '百合', url: 'uploaded:3.百合.jpg-099149b5-2239-427d-8448-61f6460356eb' },
+            { name: '馬鬱蘭', url: 'uploaded:4.馬鬱蘭.jpg-ac757918-c740-4e7f-9e47-fc37286a4e6f' },
+            { name: '花梨木', url: 'uploaded:5.花梨木.jpg-5e54dfa8-04b0-477d-8a4c-33dce4f1e948' },
+            { name: '依蘭', url: 'uploaded:6.依蘭.jpg-50e0a03c-10ae-495b-bde8-6b4ceb4398d4' },
+            { name: '甜茴香', url: 'uploaded:7.甜茴香.jpg-42e58274-baec-4345-84c5-6c8e0830c9ab' },
+            { name: '杜松果', url: 'uploaded:8.杜松果.jpg-b77608f7-fd52-40f1-9a39-5e76ea85b2a4' },
+            { name: '山雞椒', url: 'uploaded:9.山雞椒.jpg-2dc9c25f-2b6a-423b-9232-95b12ace6af5' },
+            { name: '肉桂', url: 'uploaded:10.肉桂.jpg-e18a587c-c9db-495e-89c3-9290d1c21986' },
+            { name: '香草', url: 'uploaded:11.香草.jpg-2e5e1bba-eea7-4ba2-97b9-923e56381aa0' },
+            { name: '橙花', url: 'uploaded:12.橙花.jpg-49fc2e32-1ecf-4ed6-918e-fe3ee359ba8f' },
+            { name: '羅馬洋甘菊', url: 'uploaded:13.羅馬洋甘菊.jpg-8c478c78-03dd-45b5-8531-c49e3fde410f' },
+            { name: '茉莉', url: 'uploaded:14.茉莉.jpg-d561a6c1-4d36-4302-892b-1cc80eeb440f' },
+            { name: '薄荷', url: 'uploaded:15.薄荷.jpg-7bdee7bf-2cde-4325-bca9-bd25c598adec' },
+            { name: '尤加利', url: 'uploaded:16.尤加利.jpg-dfed5883-f512-4811-89ba-815878a6c82d' },
+            { name: '廣藿香', url: 'uploaded:17.廣藿香.jpg-d0a89409-2b14-4870-8762-56083632b924' },
+            { name: '快樂鼠尾草', url: 'uploaded:18.快樂鼠尾草.jpg-489f7f82-3615-4eca-9ce6-695f77637ea8' },
+            { name: '綠花白千層', url: 'uploaded:19.綠花白千層.jpg-5e54a091-18a2-4c55-b840-078accbe088d' },
+            { name: '檸檬草', url: 'uploaded:20.檸檬草.jpg-2912aff4-a804-43cf-b802-bc14a6ea5a1' },
+            { name: '迷迭香', url: 'uploaded:21.迷迭香.jpg-3d7c8996-63c5-432e-91cc-b2a45daacb2b' },
+            { name: '百里香', url: 'uploaded:22.百里香.jpg-5e1933a6-a254-45fd-a6b3-5568b07f0350' },
+            { name: '檜木', url: 'uploaded:23.檜木.jpg-c305a1fd-91b5-48cf-b5fc-2ff8a0c4433d' },
+            { name: '沒藥', url: 'uploaded:24.沒藥.jpg-a3de39cf-35c3-4dae-9ad2-592f63f90c7d' },
+            { name: '雪松', url: 'uploaded:25.雪松.jpg-2deb0d49-c6a5-4aa1-bfb0-c76b63cbbaf9' },
+            { name: '丁香', url: 'uploaded:26.丁香.jpg-6ff4cf7a-f7f2-4e1f-8797-71c840877f1d' },
+            { name: '阿米香', url: 'uploaded:27.阿米香.jpg-2435ffd1-10c7-4737-a1bf-b73d6e059715' },
+            { name: '古芸香脂', url: 'uploaded:28.古芸香脂.jpg-8c0622a9-6ac2-4d46-bed8-8a7b3bdc3035' },
+            { name: '麝香', url: 'uploaded:29.麝香.jpg-ade88780-4fdb-4466-a165-9ce3860a2e2d' },
+            { name: '安息香', url: 'uploaded:30.安息香.jpg-51757837-4615-4986-a2a9-3a6227417cc9' },
+            { name: '馬鞭草', url: 'uploaded:31.馬鞭草.jpg-6ae3bc5f-af8a-422e-af97-e9af8fe22275' },
+            { name: '薑', url: 'uploaded:32.薑.jpg-93bd1ffe-d117-409b-bae1-9a89185a1e8a' },
+            { name: '絲柏', url: 'uploaded:33.絲柏.jpg-1a920e38-0d93-473a-9641-f898548c5d22' },
+            { name: '岩蘭草', url: 'uploaded:34.岩蘭草.jpg-1f8184a9-6550-4705-bf4c-9c45a7a18222' },
+            { name: '羅勒', url: 'uploaded:35.羅勒.jpg-475f54e0-0e9a-4299-927b-b5e256cf5de0' },
+            { name: '乳香', url: 'uploaded:36.乳香.jpg-74a1ea27-a008-4b19-9688-ecaa73701deb' },
+            { name: '檸檬', url: 'uploaded:37.檸檬.jpg-c77af9c9-098f-402c-b340-7287ace007ee' },
+            { name: '佛手柑', url: 'uploaded:38.佛手柑.jpg-4db27cc1-0957-41c6-9009-239ba1a162b7' },
+            { name: '苦橙葉', url: 'uploaded:39.苦橙葉.jpg-26a4c452-a945-49fe-9e17-14063c1655c6' },
+            { name: '葡萄柚', url: 'uploaded:40.葡萄柚.jpg-3d3cb229-4ef4-4a45-be10-ee665c55272b' },
+            { name: '甜橙', url: 'uploaded:41.甜橙.jpg-0e79bc6f-cc55-401b-8ddc-48a182983afa' },
+            { name: '茶樹', url: 'uploaded:42.茶樹.jpg-056b21a3-156b-4bba-be5f-6afdc312abdc' },
+            { name: '紫羅蘭', url: 'uploaded:43.紫羅蘭.jpg-fcdf5888-108d-4eef-9389-9a5282c0c04b' },
+            { name: '芳樟', url: 'uploaded:44.芳樟.jpg-487f8fea-0f7f-4c3f-980c-a3abc2c39f3e' },
+            { name: '黑雲杉', url: 'uploaded:45.黑雲杉.jpg-950ffd05-b5b5-4f64-b260-79a27d11413e' },
+            { name: '欖香脂', url: 'uploaded:46.欖香脂.jpg-c142093e-c8b8-4a06-8b67-983dd769479a' },
+            { name: '多香果', url: 'uploaded:47.多香果.jpg-4f35f15c-14dc-4bad-8ea8-79fc5f3b524a' },
+            { name: '薰衣草', url: 'uploaded:48.薰衣草.jpg-500b2fb3-d759-433e-9b37-b5f7d7128bf7' },
+            { name: '玫瑰天竺葵', url: 'uploaded:49.玫瑰天竺葵.jpg-d64f58f0-8a1c-45c5-b221-e62600ba4619' },
+            { name: '艾草', url: 'uploaded:50.艾草.jpg-75c1c469-6be0-4668-afa3-8fca0346a034' },
+            { name: '玫瑰草', url: 'uploaded:51.玫瑰草.jpg-3965023c-a724-4159-9ae8-fb34c59b8f0c' },
+            { name: '黑胡椒', url: 'uploaded:52.黑胡椒.jpg-204e5dac-73a0-48a6-83d4-c5d1ada2e74a' },
+            { name: '冬青', url: 'uploaded:53.冬青.jpg-4a73b215-94b5-48e4-93aa-39dec012d305' },
+            { name: '冷杉', url: 'uploaded:54.冷杉.jpg-c35f1896-98a4-4c4b-832c-73f7596a1c5d' },
+            { name: '檀香', url: 'uploaded:55.檀香.jpg-920aeacb-6982-457b-9768-8bc5867268e5' },
+            { name: '月桂葉', url: 'uploaded:56.月桂葉.jpg-17dac154-4436-4c0a-946d-c1cc24c65749' },
+            { name: '岩玫瑰', url: 'uploaded:57.岩玫瑰.jpg-3601c4a5-1df4-4828-939a-4eaf27927cf2' },
+            { name: '月神', url: 'uploaded:61.月神.jpg-08e162d6-5253-4b63-90c0-8a336ce4a159' },
+            { name: '織女', url: 'uploaded:62.織女.jpg-5bb53925-a743-4af4-820c-dea4c0a0a54a' },
+            { name: '門神', url: 'uploaded:63.門神.jpg-402c4536-f497-4bba-9dc5-49f488eaa365' },
+            { name: '布莉姬', url: 'uploaded:64.布莉姬.jpg-6f2062cb-2fc0-4a01-85ca-037795151479' },
+            { name: '拉克希米', url: 'uploaded:65.拉克希米.jpg-da47bb59-af30-48fb-8c70-01b713547f27' },
+            { name: '聖母', url: 'uploaded:66.聖母.jpg-32c017c4-e1a4-48b6-8150-383ffae82b08' },
+            { name: '梅芙', url: 'uploaded:67.梅芙.jpg-3b7fa52b-378f-40f9-a7b2-83752d2a0c0a' },
+            { name: '卡利', url: 'uploaded:68.卡利.jpg-b0dc0f3b-5049-49f8-86d6-e2fa34810b7a' },
+            { name: '真愛', url: 'uploaded:69.真愛.jpg-56675ab1-5bd0-4fa0-9798-fc06f1fbd6e5' },
+            { name: '擊退小人', url: 'uploaded:70.擊退小人.jpg-014b2fed-7d12-4218-a840-f4100c006c21' },
+            { name: '幸運', url: 'uploaded:71.幸運.jpg-e687a539-969e-4e97-8dbe-a32d7da5698d' },
+            { name: '財庫', url: 'uploaded:72.財庫.jpg-54db8eee-98db-43e4-bd10-e5d5c8b53a47' },
+            { name: '火焰防護', url: 'uploaded:73.火焰防護.jpg-63a9dae0-03b1-4ed8-8b61-82bc697c23e7' },
+            { name: '逆轉惡念', url: 'uploaded:74.逆轉惡念.jpg-2cf2a3f6-98bf-4bc5-a88e-22ee2ff5e530' },
+            { name: '遠離負能量', url: 'uploaded:75.遠離負能量.jpg-28dac564-7e7f-44c3-8cc9-19f9f09f4256' },
+            { name: '天王星', url: 'uploaded:76.天王星.jpg-86bc1ad0-4b51-4ed4-b731-f8c145d38fe0' },
+            { name: '米迦勒', url: 'uploaded:77.米迦勒.jpg-cc8c20b6-7393-483d-aeb1-afefb1a52dda' },
+            { name: '加百列', url: 'uploaded:78.加百列.jpg-6abd1247-5781-4b3b-a1b3-2c5fd2c9f37a' },
+            { name: '拉斐爾', url: 'uploaded:79.拉斐爾.jpg-b2197474-f7dc-4313-bfec-d247433426e1' },
+            { name: '烏列爾', url: 'uploaded:80.烏列爾.jpg-700d0788-9378-45e1-b747-cfee2d418475' },
+            { name: '海底輪', url: 'uploaded:81.海底輪.jpg-a98f72ff-e941-474d-a23a-ce1b13b2df66' },
+            { name: '臍輪', url: 'uploaded:82.臍輪.jpg-d6b06acd-b564-4d75-b1c9-250207c6e0b9' },
+            { name: '太陽神經叢', url: 'uploaded:83.太陽神經叢.jpg-8ac75077-1252-4d7f-a1c0-d7dfba9112fb' },
+            { name: '心輪', url: 'uploaded:84.心輪.jpg-cbd75ce7-82eb-40a4-939d-5c620bb42fe2' },
+            { name: '喉輪', url: 'uploaded:85.喉輪.jpg-2e81513a-3b92-4c08-b0bc-bce3e8afc6c3' },
+            { name: '眉心輪', url: 'uploaded:86.眉心輪.jpg-2c50d133-70f8-478f-8bde-14e46706462e' },
+            { name: '頂輪', url: 'uploaded:87.頂輪.jpg-bc9e741c-de04-4e01-af17-0cbb457187d8' },
+            { name: '直覺', url: 'uploaded:88.直覺.jpg-aa1f4c6b-c1ea-412f-8d4d-35f24f9e2ffc' }
+        ];
+
+        // 函數：顯示牌背
+        function showCardBack() {
+            const cardDisplay = document.getElementById('cardDisplay');
+            cardDisplay.style.backgroundImage = `url('${cardBackImage}')`; // 設定背景圖片
+            cardDisplay.textContent = ''; // 清空顯示的牌面文字
+            cardDisplay.classList.remove('text-red-600', 'text-gray-800'); // 移除牌面文字顏色
+            document.getElementById('interpretationDisplay').textContent = '點擊「牌卡解讀」以獲得指引'; // 清空解讀
+            currentDrawnCardName = null; // 重置已抽牌卡名稱
+        }
+
+        // 函數：顯示牌面圖片
+        function showCardFace(drawnCardObject) {
+            const cardDisplay = document.getElementById('cardDisplay');
+            cardDisplay.style.backgroundImage = `url('${drawnCardObject.url}')`; // 設定牌面圖片
+            cardDisplay.textContent = ''; // 清空顯示的文字
+            cardDisplay.classList.remove('text-red-600', 'text-gray-800'); // 移除顏色類別
+            currentDrawnCardName = drawnCardObject.name; // 儲存當前抽到的牌卡名稱
+            document.getElementById('interpretationDisplay').textContent = '點擊「牌卡解讀」以獲得指引'; // 清空舊解讀
+        }
+
+        // 函數：初始化並洗牌
+        function initializeDeck() {
+            deck = [...cardFaceImages]; // 使用提供的圖片 URLs 作為牌組
+            // 隨機洗牌
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]]; // 交換元素
+            }
+            showCardBack(); // 初始化時顯示牌背
+        }
+
+        // 函數：更新統計數據並顯示
+        async function updateStatsDisplay() {
+            try {
+                const docRef = doc(db, "artifacts", appId, "public", "data", "page_stats", "main");
+                const docSnap = await getDoc(docRef);
+
+                let pageViews = 0;
+                let totalDraws = 0;
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    pageViews = data.pageViews || 0;
+                    totalDraws = data.totalDraws || 0;
+                }
+
+                document.getElementById('pageViewsCount').textContent = pageViews;
+                document.getElementById('totalDrawsCount').textContent = totalDraws;
+
+            } catch (error) {
+                console.error("更新統計數據失敗:", error);
+                document.getElementById('pageViewsCount').textContent = '錯誤';
+                document.getElementById('totalDrawsCount').textContent = '錯誤';
+            }
+        }
+
+        // 函數：追蹤網頁瀏覽次數
+        async function trackPageView() {
+            if (!db) {
+                console.error("Firestore 尚未初始化.");
+                return;
+            }
+            try {
+                const docRef = doc(db, "artifacts", appId, "public", "data", "page_stats", "main");
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    await updateDoc(docRef, {
+                        pageViews: (docSnap.data().pageViews || 0) + 1
+                    });
+                } else {
+                    await setDoc(docRef, {
+                        pageViews: 1,
+                        totalDraws: 0
+                    });
+                }
+                updateStatsDisplay(); // 更新顯示
+            } catch (error) {
+                console.error("追蹤網頁瀏覽次數失敗:", error);
+            }
+        }
+
+        // 函數：追蹤抽牌次數
+        async function trackCardDraw(drawnCardName) {
+            if (!db) {
+                console.error("Firestore 尚未初始化.");
+                return;
+            }
+            try {
+                // 更新總抽牌次數
+                const statsDocRef = doc(db, "artifacts", appId, "public", "data", "page_stats", "main");
+                const statsDocSnap = await getDoc(statsDocRef);
+
+                if (statsDocSnap.exists()) {
+                    await updateDoc(statsDocRef, {
+                        totalDraws: (statsDocSnap.data().totalDraws || 0) + 1
+                    });
+                } else {
+                    await setDoc(statsDocRef, {
+                        pageViews: 1, // 如果統計文檔不存在，初始化
+                        totalDraws: 1
+                    });
+                }
+                updateStatsDisplay(); // 更新顯示
+            } catch (error) {
+                console.error("追蹤抽牌次數失敗:", error);
+            }
+        }
+
+        // 函數：抽一張牌
+        async function drawCard() {
+            if (deck.length === 0) {
+                // 如果牌組抽完了，重新初始化並洗牌
+                initializeDeck();
+                return;
+            }
+
+            // 從牌組中移除並抽出一張牌 (即圖片 URL)
+            const drawnCard = deck.pop(); // drawnCard 現在是 { name: '...', url: '...' }
+            showCardFace(drawnCard); // 顯示抽到的牌面圖片
+
+            // 追蹤抽牌次數
+            await trackCardDraw(drawnCard.name); // 傳遞牌卡名稱給追蹤函數
+        }
+
+        // 函數：使用 Gemini API 解讀牌卡
+        async function interpretCard() {
+            const interpretationDisplay = document.getElementById('interpretationDisplay');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+
+            if (!currentDrawnCardName) {
+                interpretationDisplay.textContent = '請先抽一張牌！';
+                return;
+            }
+
+            interpretationDisplay.textContent = ''; // 清空之前的解讀
+            loadingIndicator.classList.remove('hidden'); // 顯示載入指示器
+
+            try {
+                const prompt = `請為我解讀這張精油牌卡：${currentDrawnCardName}。請提供簡潔、正向且與身心靈相關的指引，並以繁體中文呈現。`;
+                
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Canvas 將在執行時提供此 API 金鑰
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    interpretationDisplay.textContent = text;
+                } else {
+                    interpretationDisplay.textContent = '無法獲取牌卡解讀，請再試一次。';
+                    console.error("Gemini API 回應結構不符預期:", result);
+                }
+            } catch (error) {
+                interpretationDisplay.textContent = '解讀失敗，請檢查網路連線或稍後再試。';
+                console.error("呼叫 Gemini API 失敗:", error);
+            } finally {
+                loadingIndicator.classList.add('hidden'); // 隱藏載入指示器
+            }
+        }
+
+        // 參考現有的牌面圖片 URLs
+        const cardDisplay = document.getElementById('cardDisplay');
+
+    </script>
+</body>
+</html>
