@@ -48,15 +48,12 @@
         抽牌
     </button>
 
-    <!-- 統計資訊區塊 (已移除) -->
-    <!-- 牌卡解讀區塊 (已移除) -->
-
     <!-- Instagram 連結 -->
     <p class="text-white text-lg md:text-xl mt-8">
         靜心沙龍 <a href="https://www.instagram.com/kumeka888/" target="_blank" class="text-yellow-300 hover:text-yellow-400 underline">@kumeka888</a>
     </p>
 
-    <script type="module">
+    <script>
         // 牌組和牌面圖片 URLs (更新為包含名稱和 URL 的物件陣列)
         let deck = [];
         // 使用 GitHub 儲存庫中的相對路徑作為圖片連結
@@ -156,8 +153,6 @@
             cardDisplay.style.backgroundImage = `url('${cardBackImage}')`; // 設定背景圖片
             cardDisplay.textContent = ''; // 清空顯示的牌面文字
             cardDisplay.classList.remove('text-red-600', 'text-gray-800'); // 移除牌面文字顏色
-            // document.getElementById('interpretationDisplay').textContent = '點擊「牌卡解讀」以獲得指引'; // 清空解讀
-            // currentDrawnCardName = null; // 重置已抽牌卡名稱
         }
 
         // 函數：顯示牌面圖片
@@ -166,8 +161,6 @@
             cardDisplay.style.backgroundImage = `url('${drawnCardObject.url}')`; // 設定牌面圖片
             cardDisplay.textContent = ''; // 清空顯示的文字
             cardDisplay.classList.remove('text-red-600', 'text-gray-800'); // 移除顏色類別
-            // currentDrawnCardName = drawnCardObject.name; // 儲存當前抽到的牌卡名稱
-            // document.getElementById('interpretationDisplay').textContent = '點擊「牌卡解讀」以獲得指引'; // 清空舊解讀
         }
 
         // 函數：初始化並洗牌
@@ -209,5 +202,3 @@
     </script>
 </body>
 </html>
-
-
